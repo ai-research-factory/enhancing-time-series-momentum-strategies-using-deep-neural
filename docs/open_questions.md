@@ -9,4 +9,8 @@
 - The paper's LSTM architecture specifics (exact hidden size, layers) are not fully specified. Using hidden_size=32, 2 layers as reasonable defaults.
 - The lookback window of 20 days is a common choice; the paper may use different values. To be explored in hyperparameter optimization (Phase 7).
 - Current evaluation uses a single 80/20 split. Walk-forward validation (Phase 5) is needed for robust assessment.
-- Gross Sharpe of 0.76 is preliminary; net-of-cost performance (Phase 4) will be the true test.
+
+## Transaction Costs (Cycle 4)
+- The model learns near-static positions, resulting in minimal turnover and negligible cost impact (Sharpe drops from 0.76 to 0.76 net). Walk-forward validation with retraining will produce more realistic turnover.
+- Current cost model is proportional only (15 bps total). Does not model market impact, bid-ask spreads, or time-varying liquidity.
+- The paper may use different cost assumptions; 10 bps fee + 5 bps slippage are ARF defaults.

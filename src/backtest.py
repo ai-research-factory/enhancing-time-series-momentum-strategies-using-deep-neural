@@ -74,6 +74,44 @@ class WalkForwardValidator:
             )
 
 
+def calculate_portfolio_costs(
+    positions: np.ndarray,
+    asset_returns: np.ndarray,
+    config: BacktestConfig,
+) -> tuple[np.ndarray, np.ndarray, int]:
+    """
+    Calculate transaction costs for a multi-asset portfolio.
+
+    Args:
+        positions: Position array (T, n_assets) in [-1, 1].
+        asset_returns: Asset returns array (T, n_assets).
+        config: Backtest configuration with fee/slippage settings.
+
+    Returns:
+        Tuple of (gross_portfolio_returns, net_portfolio_returns, total_trades).
+    """
+    cost_per_trade = (config.fee_bps + config.slippage_bps) / 10000
+    n_assets = positions.shape[1]
+
+    # Per-asset position changes (turnover)
+    pos_diff = np.abs(np.diff(positions, axis=0))
+    # First row has no previous position; assume entering from zero
+    first_trade = np.abs(positions[0:1, :])
+    turnover = np.vstack([first_trade, pos_diff])  # (T, n_assets)
+
+    # Per-asset costs per day, averaged across assets (same as return aggregation)
+    daily_costs = (turnover * cost_per_trade).mean(axis=1)  # (T,)
+
+    # Gross portfolio returns: mean of (position * return) across assets
+    gross_returns = (positions * asset_returns).mean(axis=1)  # (T,)
+    net_returns = gross_returns - daily_costs
+
+    # Count trades: position changes exceeding a small threshold
+    total_trades = int(np.sum(turnover > 0.01))
+
+    return gross_returns, net_returns, total_trades
+
+
 def calculate_costs(returns: pd.Series, positions: pd.Series, config: BacktestConfig) -> pd.Series:
     """
     Calculate transaction costs from position changes.

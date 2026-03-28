@@ -28,14 +28,16 @@ python3 scripts/fetch_data.py
 python3 scripts/train_single.py
 ```
 
-## Results (Cycle 3 — Single Period)
+## Results (Cycle 4 — Transaction Cost Model)
 
-| Metric | Value |
-|---|---|
-| Gross Sharpe Ratio | 0.76 |
-| Annual Return | 4.23% |
-| Max Drawdown | -6.72% |
-| Test Period | 2023-03 to 2026-03 |
+| Metric | Gross | Net (15 bps) |
+|---|---|---|
+| Sharpe Ratio | 0.76 | 0.76 |
+| Annual Return | 4.23% | 4.19% |
+| Max Drawdown | -6.72% | -6.73% |
+| Test Period | 2023-03 to 2026-03 | |
+
+The LSTM learns smooth, low-turnover positions, resulting in minimal cost drag (~0.15% over 3 years).
 
 ## Reports
 

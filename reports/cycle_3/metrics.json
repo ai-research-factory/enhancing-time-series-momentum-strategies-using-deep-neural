@@ -3,11 +3,11 @@
   "annualReturn": 0.0423,
   "maxDrawdown": -0.0672,
   "hitRate": 0.5366,
-  "totalTrades": 0,
+  "totalTrades": 2,
   "transactionCosts": {
     "feeBps": 10,
     "slippageBps": 5,
-    "netSharpe": 0.0
+    "netSharpe": 0.7572
   },
   "walkForward": {
     "windows": 0,

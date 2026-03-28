@@ -1,0 +1,32 @@
+{
+  "sharpeRatio": 0.7648,
+  "annualReturn": 0.0423,
+  "maxDrawdown": -0.0672,
+  "hitRate": 0.5366,
+  "totalTrades": 2,
+  "transactionCosts": {
+    "feeBps": 10.0,
+    "slippageBps": 5.0,
+    "netSharpe": 0.7572
+  },
+  "walkForward": {
+    "windows": 0,
+    "positiveWindows": 0,
+    "avgOosSharpe": 0.0
+  },
+  "customMetrics": {
+    "phase": "transaction-cost-model",
+    "grossSharpe": 0.7648,
+    "netSharpe": 0.7572,
+    "netAnnualReturn": 0.0419,
+    "netMaxDrawdown": -0.0673,
+    "netHitRate": 0.5353,
+    "grossCumulativeReturn": 1.1315,
+    "netCumulativeReturn": 1.1301,
+    "costDrag": 0.0015,
+    "avgDailyTurnover": 0.0011,
+    "totalTrades": 2,
+    "testStartDate": "2023-03-30",
+    "testEndDate": "2026-03-27"
+  }
+}
