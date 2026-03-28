@@ -1,0 +1,113 @@
+{
+  "sharpeRatio": 0.7421,
+  "annualReturn": 0.0174,
+  "maxDrawdown": -0.1672,
+  "hitRate": 0.5473,
+  "totalTrades": 911,
+  "transactionCosts": {
+    "feeBps": 10.0,
+    "slippageBps": 5.0,
+    "netSharpe": 0.6766
+  },
+  "walkForward": {
+    "windows": 5,
+    "positiveWindows": 4,
+    "avgOosSharpe": 0.6766
+  },
+  "customMetrics": {
+    "phase": "walk-forward-validation",
+    "nWindows": 5,
+    "combinedGrossSharpe": 0.4722,
+    "combinedNetSharpe": 0.4338,
+    "combinedNetAnnualReturn": 0.0172,
+    "combinedNetMaxDrawdown": -0.1672,
+    "combinedNetHitRate": 0.5473,
+    "oosStartDate": "2013-05-03",
+    "oosEndDate": "2026-03-27",
+    "oosDays": 3245,
+    "grossCumulativeReturn": 1.2706,
+    "netCumulativeReturn": 1.2451,
+    "windowDetails": [
+      {
+        "window": 1,
+        "trainStart": "2011-04-27",
+        "trainEnd": "2013-05-01",
+        "testStart": "2013-05-03",
+        "testEnd": "2015-11-27",
+        "trainSize": 506,
+        "testSize": 649,
+        "grossSharpe": 1.0237,
+        "netSharpe": 1.0048,
+        "annualReturn": 0.028,
+        "maxDrawdown": -0.0282,
+        "hitRate": 0.5609,
+        "totalTrades": 3,
+        "finalTrainLoss": -0.1285
+      },
+      {
+        "window": 2,
+        "trainStart": "2011-04-27",
+        "trainEnd": "2015-11-25",
+        "testStart": "2015-11-30",
+        "testEnd": "2018-06-27",
+        "trainSize": 1155,
+        "testSize": 649,
+        "grossSharpe": 0.9521,
+        "netSharpe": 0.9405,
+        "annualReturn": 0.0358,
+        "maxDrawdown": -0.038,
+        "hitRate": 0.567,
+        "totalTrades": 3,
+        "finalTrainLoss": -0.1669
+      },
+      {
+        "window": 3,
+        "trainStart": "2011-04-27",
+        "trainEnd": "2018-06-26",
+        "testStart": "2018-06-28",
+        "testEnd": "2021-01-26",
+        "trainSize": 1804,
+        "testSize": 649,
+        "grossSharpe": 1.2233,
+        "netSharpe": 0.9458,
+        "annualReturn": 0.0202,
+        "maxDrawdown": -0.0336,
+        "hitRate": 0.5593,
+        "totalTrades": 900,
+        "finalTrainLoss": -0.0828
+      },
+      {
+        "window": 4,
+        "trainStart": "2011-04-27",
+        "trainEnd": "2021-01-25",
+        "testStart": "2021-01-27",
+        "testEnd": "2023-08-24",
+        "trainSize": 2453,
+        "testSize": 649,
+        "grossSharpe": -0.3972,
+        "netSharpe": -0.4061,
+        "annualReturn": -0.029,
+        "maxDrawdown": -0.1672,
+        "hitRate": 0.5131,
+        "totalTrades": 3,
+        "finalTrainLoss": -0.0826
+      },
+      {
+        "window": 5,
+        "trainStart": "2011-04-27",
+        "trainEnd": "2023-08-23",
+        "testStart": "2023-08-25",
+        "testEnd": "2026-03-27",
+        "trainSize": 3102,
+        "testSize": 649,
+        "grossSharpe": 0.9085,
+        "netSharpe": 0.8982,
+        "annualReturn": 0.0322,
+        "maxDrawdown": -0.0445,
+        "hitRate": 0.5362,
+        "totalTrades": 2,
+        "finalTrainLoss": -0.0574
+      }
+    ]
+  }
+}

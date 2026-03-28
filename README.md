@@ -26,18 +26,23 @@ python3 scripts/fetch_data.py
 
 # Train and evaluate (single period)
 python3 scripts/train_single.py
+
+# Walk-forward validation
+python3 scripts/train_single.py --mode walk-forward
 ```
 
-## Results (Cycle 4 — Transaction Cost Model)
+## Results (Cycle 5 — Walk-Forward Validation)
 
-| Metric | Gross | Net (15 bps) |
-|---|---|---|
-| Sharpe Ratio | 0.76 | 0.76 |
-| Annual Return | 4.23% | 4.19% |
-| Max Drawdown | -6.72% | -6.73% |
-| Test Period | 2023-03 to 2026-03 | |
+| Metric | Value |
+|---|---|
+| Avg OOS Net Sharpe | 0.68 |
+| Positive Windows | 4/5 (80%) |
+| Combined Net Sharpe | 0.43 |
+| Combined Annual Return | 1.72% |
+| Max Drawdown | -16.72% |
+| OOS Period | 2013-05 to 2026-03 |
 
-The LSTM learns smooth, low-turnover positions, resulting in minimal cost drag (~0.15% over 3 years).
+Walk-forward validation with 5 expanding windows confirms positive risk-adjusted returns in 4/5 market regimes. Window 4 (2021-2023, rising rates) is the only negative period.
 
 ## Reports
 

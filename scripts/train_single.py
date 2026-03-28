@@ -1,10 +1,9 @@
 """
-Single-period training and evaluation with transaction cost analysis.
+Training and evaluation for the Deep Momentum Network.
 
-Loads preprocessed ETF data, trains a DeepMomentumNetwork with SharpeRatioLoss
-on 80% of the data, evaluates on the remaining 20%, and produces:
-  - Cycle 3: gross metrics and equity curve
-  - Cycle 4: net-of-cost metrics and gross vs net equity curves
+Supports:
+  - Single-period: 80/20 split (Cycles 3-4)
+  - Walk-forward: expanding window OOS validation (Cycle 5+)
 """
 import json
 import sys
@@ -21,7 +20,14 @@ from torch.utils.data import DataLoader, TensorDataset
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.backtest import BacktestConfig, calculate_portfolio_costs, compute_metrics
+from src.backtest import (
+    BacktestConfig,
+    BacktestResult,
+    WalkForwardValidator,
+    calculate_portfolio_costs,
+    compute_metrics,
+    generate_metrics_json,
+)
 from src.data import DataLoader as ETFDataLoader
 from src.model import DeepMomentumNetwork, SharpeRatioLoss
 
@@ -357,5 +363,248 @@ def main():
     print(f"Saved cycle 4 metrics to {cycle4_metrics_path}")
 
 
+def walk_forward():
+    """Walk-forward validation with expanding training windows."""
+    torch.manual_seed(SEED)
+    np.random.seed(SEED)
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+
+    # 1. Load data
+    df = load_data()
+    tickers = [c.replace("_return", "") for c in df.columns if c.endswith("_return")]
+    n_assets = len(tickers)
+    return_cols = [f"{t}_return" for t in tickers]
+    returns = df[return_cols].values  # (T, n_assets)
+    print(f"Tickers: {tickers}, N={n_assets}, Data shape: {df.shape}")
+
+    # 2. Build sequences
+    X, Y = build_sequences(returns, LOOKBACK)
+    # Corresponding dates for each sequence
+    seq_dates = df.index[LOOKBACK : LOOKBACK + len(X)]
+    print(f"Sequences: X={X.shape}, Y={Y.shape}")
+
+    # 3. Walk-forward split
+    config = BacktestConfig(
+        fee_bps=10.0,
+        slippage_bps=5.0,
+        train_ratio=1.0,    # expanding window: use all available history
+        n_splits=5,
+        gap=1,
+        min_train_size=504,  # ~2 years minimum training
+    )
+    validator = WalkForwardValidator(config)
+
+    # Create a dummy DataFrame just for the split (uses length only)
+    dummy_df = pd.DataFrame(index=range(len(X)))
+
+    results: list[BacktestResult] = []
+    all_oos_returns = []
+    all_oos_dates = []
+    all_oos_positions = []
+    all_oos_asset_returns = []
+    window_details = []
+
+    print(f"\n{'='*60}")
+    print(f"Walk-Forward Validation: {config.n_splits} windows")
+    print(f"Min train size: {config.min_train_size}, Gap: {config.gap}")
+    print(f"{'='*60}")
+
+    for window_idx, (train_idx, test_idx) in enumerate(validator.split(dummy_df)):
+        print(f"\n--- Window {window_idx + 1} ---")
+        X_train = X[train_idx]
+        Y_train = Y[train_idx]
+        X_test = X[test_idx]
+        Y_test = Y[test_idx]
+        test_dates = seq_dates[test_idx[0] : test_idx[-1] + 1]
+
+        train_start = str(seq_dates[train_idx[0]].date())
+        train_end = str(seq_dates[train_idx[-1]].date())
+        test_start = str(seq_dates[test_idx[0]].date())
+        test_end = str(seq_dates[test_idx[-1]].date())
+
+        print(f"  Train: {train_start} to {train_end} ({len(train_idx)} samples)")
+        print(f"  Test:  {test_start} to {test_end} ({len(test_idx)} samples)")
+
+        # Train fresh model for each window
+        torch.manual_seed(SEED + window_idx)
+        model = DeepMomentumNetwork(
+            n_assets=n_assets,
+            hidden_size=HIDDEN_SIZE,
+            num_layers=NUM_LAYERS,
+            dropout=DROPOUT,
+        ).to(device)
+
+        train_losses = train_model(model, X_train, Y_train, EPOCHS, BATCH_SIZE, LR, device)
+
+        # Evaluate on OOS
+        positions, portfolio_returns = evaluate(model, X_test, Y_test, device)
+
+        # Compute gross and net metrics
+        gross_rets, net_rets, total_trades = calculate_portfolio_costs(
+            positions, Y_test, config
+        )
+        gross_series = pd.Series(gross_rets, index=test_dates[:len(gross_rets)])
+        net_series = pd.Series(net_rets, index=test_dates[:len(net_rets)])
+        gross_metrics = compute_metrics(gross_series)
+        net_metrics = compute_metrics(net_series)
+
+        result = BacktestResult(
+            window=window_idx + 1,
+            train_start=train_start,
+            train_end=train_end,
+            test_start=test_start,
+            test_end=test_end,
+            gross_sharpe=gross_metrics["sharpeRatio"],
+            net_sharpe=net_metrics["sharpeRatio"],
+            annual_return=net_metrics["annualReturn"],
+            max_drawdown=net_metrics["maxDrawdown"],
+            total_trades=total_trades,
+            hit_rate=net_metrics["hitRate"],
+            pnl_series=net_series,
+        )
+        results.append(result)
+        all_oos_returns.extend(net_rets.tolist())
+        all_oos_dates.extend(test_dates[:len(net_rets)].tolist())
+        all_oos_positions.append(positions)
+        all_oos_asset_returns.append(Y_test)
+
+        print(f"  Gross Sharpe: {gross_metrics['sharpeRatio']:.4f}")
+        print(f"  Net Sharpe:   {net_metrics['sharpeRatio']:.4f}")
+        print(f"  Annual Ret:   {net_metrics['annualReturn']:.4f}")
+        print(f"  Max DD:       {net_metrics['maxDrawdown']:.4f}")
+        print(f"  Final loss:   {train_losses[-1]:.4f}")
+
+        window_details.append({
+            "window": window_idx + 1,
+            "trainStart": train_start,
+            "trainEnd": train_end,
+            "testStart": test_start,
+            "testEnd": test_end,
+            "trainSize": len(train_idx),
+            "testSize": len(test_idx),
+            "grossSharpe": gross_metrics["sharpeRatio"],
+            "netSharpe": net_metrics["sharpeRatio"],
+            "annualReturn": net_metrics["annualReturn"],
+            "maxDrawdown": net_metrics["maxDrawdown"],
+            "hitRate": net_metrics["hitRate"],
+            "totalTrades": total_trades,
+            "finalTrainLoss": round(float(train_losses[-1]), 4),
+        })
+
+    # 4. Aggregate OOS results
+    print(f"\n{'='*60}")
+    print("Walk-Forward Aggregate Results")
+    print(f"{'='*60}")
+
+    # Combined OOS equity curve
+    oos_returns_array = np.array(all_oos_returns)
+    oos_cum_returns = np.cumprod(1 + oos_returns_array)
+    oos_dates = pd.DatetimeIndex(all_oos_dates)
+
+    # Combined OOS metrics
+    combined_oos = pd.Series(oos_returns_array, index=oos_dates)
+    combined_metrics = compute_metrics(combined_oos)
+
+    # Also compute combined gross for comparison
+    all_gross_rets = []
+    for pos, asset_ret in zip(all_oos_positions, all_oos_asset_returns):
+        gross_r, _, _ = calculate_portfolio_costs(pos, asset_ret, BacktestConfig(fee_bps=0, slippage_bps=0))
+        all_gross_rets.extend(gross_r.tolist())
+    combined_gross = pd.Series(np.array(all_gross_rets), index=oos_dates)
+    combined_gross_metrics = compute_metrics(combined_gross)
+
+    print(f"  Windows completed:    {len(results)}")
+    print(f"  Positive windows:     {sum(1 for r in results if r.net_sharpe > 0)}/{len(results)}")
+    print(f"  Avg OOS Net Sharpe:   {np.mean([r.net_sharpe for r in results]):.4f}")
+    print(f"  Combined Gross Sharpe:{combined_gross_metrics['sharpeRatio']:.4f}")
+    print(f"  Combined Net Sharpe:  {combined_metrics['sharpeRatio']:.4f}")
+    print(f"  Combined Annual Ret:  {combined_metrics['annualReturn']:.4f}")
+    print(f"  Combined Max DD:      {combined_metrics['maxDrawdown']:.4f}")
+    print(f"  OOS period:           {oos_dates[0].date()} to {oos_dates[-1].date()}")
+
+    # 5. Save outputs
+    REPORT_DIR_5 = Path("reports/cycle_5")
+    REPORT_DIR_5.mkdir(parents=True, exist_ok=True)
+
+    # Generate standard metrics using backtest framework
+    metrics_json = generate_metrics_json(
+        results, config,
+        custom_metrics={
+            "phase": "walk-forward-validation",
+            "nWindows": len(results),
+            "combinedGrossSharpe": combined_gross_metrics["sharpeRatio"],
+            "combinedNetSharpe": combined_metrics["sharpeRatio"],
+            "combinedNetAnnualReturn": combined_metrics["annualReturn"],
+            "combinedNetMaxDrawdown": combined_metrics["maxDrawdown"],
+            "combinedNetHitRate": combined_metrics["hitRate"],
+            "oosStartDate": str(oos_dates[0].date()),
+            "oosEndDate": str(oos_dates[-1].date()),
+            "oosDays": len(oos_returns_array),
+            "grossCumulativeReturn": round(float(np.cumprod(1 + np.array(all_gross_rets))[-1]), 4),
+            "netCumulativeReturn": round(float(oos_cum_returns[-1]), 4),
+            "windowDetails": window_details,
+        },
+    )
+
+    metrics_path = REPORT_DIR_5 / "metrics.json"
+    with open(metrics_path, "w") as f:
+        json.dump(metrics_json, f, indent=2)
+    print(f"\nSaved metrics to {metrics_path}")
+
+    # Plot OOS equity curve (net of costs)
+    fig, axes = plt.subplots(2, 1, figsize=(14, 10))
+
+    # Top: combined OOS equity curve with window boundaries
+    ax = axes[0]
+    gross_cum = np.cumprod(1 + np.array(all_gross_rets))
+    ax.plot(oos_dates, gross_cum, linewidth=1.2, alpha=0.7, label="Gross")
+    ax.plot(oos_dates, oos_cum_returns, linewidth=1.5, label="Net of Costs")
+    # Mark window boundaries
+    for r in results:
+        boundary = pd.Timestamp(r.test_start)
+        ax.axvline(x=boundary, color="gray", linestyle=":", alpha=0.4)
+    ax.axhline(y=1.0, color="gray", linestyle="--", alpha=0.5)
+    ax.set_title("Walk-Forward OOS Cumulative Return — Deep Momentum Network")
+    ax.set_ylabel("Cumulative Return")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+
+    # Bottom: per-window Sharpe ratios
+    ax2 = axes[1]
+    windows = [r.window for r in results]
+    gross_sharpes = [r.gross_sharpe for r in results]
+    net_sharpes = [r.net_sharpe for r in results]
+    x = np.arange(len(windows))
+    width = 0.35
+    ax2.bar(x - width / 2, gross_sharpes, width, label="Gross Sharpe", alpha=0.8)
+    ax2.bar(x + width / 2, net_sharpes, width, label="Net Sharpe", alpha=0.8)
+    ax2.axhline(y=0, color="gray", linestyle="-", alpha=0.3)
+    ax2.set_xlabel("Walk-Forward Window")
+    ax2.set_ylabel("Sharpe Ratio")
+    ax2.set_title("Per-Window OOS Sharpe Ratio")
+    ax2.set_xticks(x)
+    ax2.set_xticklabels([f"W{w}" for w in windows])
+    ax2.legend()
+    ax2.grid(True, alpha=0.3)
+
+    fig.tight_layout()
+    plot_path = REPORT_DIR_5 / "walk_forward_equity_curve.png"
+    fig.savefig(plot_path, dpi=150)
+    plt.close(fig)
+    print(f"Saved walk-forward plots to {plot_path}")
+
+    return metrics_json
+
+
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", choices=["single", "walk-forward"], default="single")
+    args = parser.parse_args()
+
+    if args.mode == "walk-forward":
+        walk_forward()
+    else:
+        main()
