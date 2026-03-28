@@ -1,5 +1,5 @@
 [project]
-name = "enhancing-time-series-momentum-strategies-using-deep-neural"
+name = "enhancing-time-series-momentum-strategies-using-deep-neural-2"
 version = "0.1.0"
 description = "Enhancing Time Series Momentum Strategies Using Deep Neural Networks"
 requires-python = ">=3.10"
