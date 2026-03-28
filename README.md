@@ -18,8 +18,27 @@ pytest tests/
 
 Data is fetched from the ARF Data API at runtime. Do not commit data files.
 
+To fetch and preprocess data:
+```bash
+python3 scripts/fetch_data.py
+```
+
+This downloads daily OHLCV data for SPY, TLT, and GLD (15 years), computes daily returns, and saves the result to `data/processed/assets.pkl`.
+
+## Project Structure
+
+- `src/data.py` — `DataLoader` class for fetching and preprocessing ETF data
+- `src/backtest.py` — Walk-forward validation and metrics framework
+- `scripts/fetch_data.py` — Data pipeline entry point
+- `data/` — Raw and processed data (git-ignored)
+- `reports/` — Cycle-level metrics and findings
+
 ## Reports
 
 Each cycle produces:
 - `reports/cycle_N/metrics.json` — Structured metrics
 - `reports/cycle_N/technical_findings.md` — Technical summary
+
+### Cycle 2 (Current)
+- Data pipeline for SPY, TLT, GLD via ARF Data API
+- 3,772 trading days (2011-03-29 to 2026-03-27), zero NaN values
