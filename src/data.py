@@ -3,9 +3,9 @@ Data pipeline for fetching and preprocessing ETF OHLCV data.
 Uses ARF Data API to retrieve historical price data.
 """
 import os
-import pickle
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 API_BASE = "https://ai.1s.xyz/api/data/ohlcv"
@@ -54,14 +54,26 @@ class DataLoader:
         return raw_data
 
     def preprocess(self, raw_data: dict[str, pd.DataFrame]) -> pd.DataFrame:
-        """Calculate daily returns and handle NaN values.
+        """Calculate daily log returns and handle NaN values.
+
+        Filters out future data defensively. Uses log returns per paper spec.
 
         Args:
             raw_data: Dict mapping ticker to OHLCV DataFrame.
 
         Returns:
-            DataFrame with columns for each ticker's close price and daily return.
+            DataFrame with columns for each ticker's close price and daily log return.
         """
+        # Filter out future data from each ticker
+        today = pd.Timestamp.now()
+        for ticker in raw_data:
+            df = raw_data[ticker]
+            if df.index.tz is not None:
+                today_tz = today.tz_localize(df.index.tz)
+            else:
+                today_tz = today
+            raw_data[ticker] = df[df.index <= today_tz]
+
         closes = pd.DataFrame({
             ticker: df["close"] for ticker, df in raw_data.items()
         })
@@ -73,8 +85,8 @@ class DataLoader:
         # Drop any remaining leading NaN rows
         closes = closes.dropna()
 
-        # Calculate daily returns
-        returns = closes.pct_change()
+        # Calculate daily log returns (review feedback: use log returns)
+        returns = np.log(closes / closes.shift(1))
         # First row of returns will be NaN; drop it
         returns = returns.iloc[1:]
 
@@ -88,8 +100,8 @@ class DataLoader:
 
         return result
 
-    def save(self, df: pd.DataFrame, filename: str = "assets.pkl") -> Path:
-        """Save processed data to pickle file.
+    def save(self, df: pd.DataFrame, filename: str = "assets.parquet") -> Path:
+        """Save processed data to parquet file.
 
         Args:
             df: Processed DataFrame.
@@ -100,8 +112,7 @@ class DataLoader:
         """
         self.processed_dir.mkdir(parents=True, exist_ok=True)
         out_path = self.processed_dir / filename
-        with open(out_path, "wb") as f:
-            pickle.dump(df, f)
+        df.to_parquet(out_path)
         print(f"  Saved processed data to {out_path}")
         return out_path
 

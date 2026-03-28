@@ -1,0 +1,26 @@
+{
+  "sharpeRatio": 0.7648,
+  "annualReturn": 0.0423,
+  "maxDrawdown": -0.0672,
+  "hitRate": 0.5366,
+  "totalTrades": 0,
+  "transactionCosts": {
+    "feeBps": 10,
+    "slippageBps": 5,
+    "netSharpe": 0.0
+  },
+  "walkForward": {
+    "windows": 0,
+    "positiveWindows": 0,
+    "avgOosSharpe": 0.0
+  },
+  "customMetrics": {
+    "phase": "single-period-training",
+    "grossCumulativeReturn": 1.1315,
+    "testStartDate": "2023-03-30",
+    "testEndDate": "2026-03-27",
+    "lookback": 20,
+    "epochs": 100,
+    "finalTrainLoss": -0.0531
+  }
+}

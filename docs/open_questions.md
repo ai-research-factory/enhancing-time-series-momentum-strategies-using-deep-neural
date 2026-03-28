@@ -6,4 +6,7 @@
 - The paper may use different data sources or exact date ranges; this implementation uses ARF Data API as required by project rules.
 
 ## Model
-- No model questions at this phase (data pipeline only).
+- The paper's LSTM architecture specifics (exact hidden size, layers) are not fully specified. Using hidden_size=32, 2 layers as reasonable defaults.
+- The lookback window of 20 days is a common choice; the paper may use different values. To be explored in hyperparameter optimization (Phase 7).
+- Current evaluation uses a single 80/20 split. Walk-forward validation (Phase 5) is needed for robust assessment.
+- Gross Sharpe of 0.76 is preliminary; net-of-cost performance (Phase 4) will be the true test.

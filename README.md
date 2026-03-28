@@ -18,6 +18,25 @@ pytest tests/
 
 Data is fetched from the ARF Data API at runtime. Do not commit data files.
 
+## Usage
+
+```bash
+# Fetch and preprocess data
+python3 scripts/fetch_data.py
+
+# Train and evaluate (single period)
+python3 scripts/train_single.py
+```
+
+## Results (Cycle 3 — Single Period)
+
+| Metric | Value |
+|---|---|
+| Gross Sharpe Ratio | 0.76 |
+| Annual Return | 4.23% |
+| Max Drawdown | -6.72% |
+| Test Period | 2023-03 to 2026-03 |
+
 ## Reports
 
 Each cycle produces:

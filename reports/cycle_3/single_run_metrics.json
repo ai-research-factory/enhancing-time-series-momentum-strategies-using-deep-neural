@@ -1,0 +1,26 @@
+{
+  "grossSharpeRatio": 0.7648,
+  "annualReturn": 0.0423,
+  "maxDrawdown": -0.0672,
+  "hitRate": 0.5366,
+  "cumulativeReturn": 1.1315,
+  "testPeriod": {
+    "start": "2023-03-30",
+    "end": "2026-03-27",
+    "nDays": 751
+  },
+  "modelConfig": {
+    "lookback": 20,
+    "hiddenSize": 32,
+    "numLayers": 2,
+    "dropout": 0.1,
+    "lr": 0.001,
+    "epochs": 100,
+    "batchSize": 64
+  },
+  "tickers": [
+    "SPY",
+    "TLT",
+    "GLD"
+  ]
+}
